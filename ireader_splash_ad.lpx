@@ -4,7 +4,7 @@
 #!loon_version=3.5.0(975)
 
 [Script]
-http-response ^https:\/\/saad\.ms\.zhangyue\.net\/ad\/cfg script-path=https://raw.githubusercontent.com/IDREAMyul/loon-scripts/main/ireader_disable_screen.js,requires-body=true,binary-body-mode=false,timeout=10,tag=掌阅关闭开屏广告
+http-response ^https:\/\/saad\.ms\.zhangyue\.net\/ad\/cfg script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/refs/heads/main/ireader_disable_screen.js,requires-body=true,binary-body-mode=false,timeout=10,tag=掌阅关闭开屏广告
 
 [Mitm]
 hostname=saad.ms.zhangyue.net
