@@ -1,0 +1,23 @@
+请先完整阅读以下文件，并把它们作为本项目的约束来源：
+
+- CODEX_CONTEXT.md
+- docs/DECISIONS.md
+- docs/SECURITY.md
+- config/Loon_Public.conf
+- plugins/ireader_splash_ad.lpx
+- scripts/ireader_disable_screen.js
+
+任务要求：
+
+1. 先总结你理解到的项目目标、不可改变的约束和敏感信息边界。
+2. 检查仓库当前文件是否与这些约束一致。
+3. 不要自行更改“ChatGPT 仅台湾”“日常日本优先、香港备用”“禁止旧 resource-parser”这三项核心设计。
+4. 所有修改通过新分支完成，并优先创建 Pull Request，不直接改主分支。
+5. 每次修改后执行静态检查：
+   - 搜索订阅 Token、UUID、密码、ca-p12、ca-passphrase；
+   - 检查是否出现 resource-parser；
+   - 检查 ChatGPT 策略组是否只引用台湾节点；
+   - 检查日常代理是否保持日本在前、香港在后；
+   - 检查是否误加 disable-udp-ports=443；
+   - 检查插件 Raw 地址是否可读。
+6. 在真正修改任何文件前，先列出计划和预计修改的文件。
