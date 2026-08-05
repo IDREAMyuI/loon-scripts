@@ -33,14 +33,17 @@
 
 ## 掌阅插件
 
-仓库：`https://github.com/IDREAMyul/loon-scripts`
+仓库：`https://github.com/IDREAMyuI/loon-scripts`
 
-脚本文件：`ireader_disable_screen.js`
+脚本文件：`scripts/ireader_disable_screen.js`
 
-插件文件：`ireader_splash_ad.lpx`
+插件文件：`plugins/ireader_splash_ad.lpx`
 
 插件 Raw 地址：
-`https://raw.githubusercontent.com/IDREAMyul/loon-scripts/main/ireader_splash_ad.lpx`
+`https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/plugins/ireader_splash_ad.lpx`
+
+脚本 Raw 地址：
+`https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/ireader_disable_screen.js`
 
 目标接口：
 `https://saad.ms.zhangyue.net/ad/cfg`
