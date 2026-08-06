@@ -15,8 +15,6 @@
 - 日常代理必须保持 `fallback,台湾节点,香港节点,日本节点` 的顺序。
 - 顶层代理模式必须默认选择日常代理，手动选择组必须包含完整的 Sub-Store 节点订阅。
 - 主配置必须保留 OpenAI 第一方核心域名的台湾兜底，防止远程规则首次下载失败时落入其他节点。
-- 禁止启用旧 `resource-parser`。
-- 不长期配置 `disable-udp-ports=443`，避免影响 Hysteria2 或 QUIC。
 - 公开仓库不得包含订阅 Token、节点 UUID/密码、证书私钥、Cookie 或 Authorization。
 
 详细设计与安全边界参见：
