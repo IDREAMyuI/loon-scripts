@@ -4,7 +4,7 @@
 #!loon_version=3.5.0(975)
 
 [Script]
-http-response ^https:\/\/helper\.2bulu\.com\/(?:adConfig\/get|getSplash)(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/add-liangbulu-splash-adblock/scripts/liangbulu_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=两步路关闭广告
+http-response ^https:\/\/helper\.2bulu\.com\/(?:adConfig\/get|getSplash)(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/liangbulu_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=两步路关闭广告
 
 [Mitm]
 hostname=helper.2bulu.com
