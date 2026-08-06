@@ -24,6 +24,7 @@ if (!body) {
         }
 
         changed = true;
+        console.log("两步路广告：开屏配置已关闭");
       }
 
       if (interstitialAd && typeof interstitialAd === "object") {
@@ -38,13 +39,24 @@ if (!body) {
         }
 
         changed = true;
+        console.log("两步路广告：插屏配置已关闭");
+      }
+
+      if (!changed) {
+        console.log("两步路广告：配置响应未命中预期结构");
       }
     } else if (/\/getSplash(?:\?|$)/.test(url) && Array.isArray(obj?.infos)) {
+      const hadContent = obj.infos.length > 0;
       obj.infos = [];
       changed = true;
+
+      console.log(
+        `两步路广告：开屏内容${hadContent ? "已清空" : "保持为空"}`
+      );
+    } else {
+      console.log("两步路广告：响应未命中预期结构");
     }
 
-    console.log(`两步路广告：${changed ? "已处理" : "未命中预期结构"}`);
     $done(changed ? { body: JSON.stringify(obj) } : {});
   } catch (error) {
     console.log("两步路广告：响应解析失败");
