@@ -1,0 +1,10 @@
+#!name=微博开屏广告
+#!desc=清空微博开屏预加载和缓存广告
+#!author=IDREAMyuI
+#!loon_version=3.5.0(975)
+
+[Script]
+http-response ^https:\/\/(?:bootpreload\.uve\.weibo\.com\/v2\/ad\/preload|wbapp\.uve\.weibo\.com\/wbapplua\/wbpullad\.lua)(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/weibo-splash-ad/scripts/weibo_disable_splash.js,requires-body=true,binary-body-mode=false,timeout=10,tag=微博关闭开屏广告
+
+[Mitm]
+hostname=bootpreload.uve.weibo.com,wbapp.uve.weibo.com
