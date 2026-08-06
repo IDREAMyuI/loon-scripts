@@ -1,0 +1,10 @@
+#!name=两步路广告净化
+#!desc=关闭两步路开屏广告和浏览过程中弹出的插屏广告
+#!author=IDREAMyuI
+#!loon_version=3.5.0(975)
+
+[Script]
+http-response ^https:\/\/helper\.2bulu\.com\/(?:adConfig\/get|getSplash)(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/add-liangbulu-splash-adblock/scripts/liangbulu_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=两步路关闭广告
+
+[Mitm]
+hostname=helper.2bulu.com
