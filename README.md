@@ -7,7 +7,7 @@
 - 可切换到包含全部订阅节点的手动选择组；
 - 通过本机 Sub-Store 管理敏感订阅并输出 Loon 原生节点；
 - 通过仓库自有的远程规则维护 OpenAI 与直连分流；
-- 通过独立插件处理掌阅 iReader 开屏广告和两步路开屏、插屏广告。
+- 通过独立插件处理掌阅 iReader、微博开屏广告和两步路开屏、插屏广告。
 
 ## 核心约束
 
@@ -46,5 +46,7 @@ scripts/   插件引用的脚本
 - 掌阅脚本：`https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/ireader_disable_screen.js`
 - 两步路插件：`https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/plugins/liangbulu_ads.lpx`
 - 两步路脚本：`https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/liangbulu_disable_ads.js`
+- 微博插件：`https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/plugins/weibo_splash_ad.lpx`
+- 微博脚本：`https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/weibo_disable_splash.js`
 
 机场原始订阅及其他敏感项仅保存在手机本机，不提交到本仓库。发现泄露时不要在公开 Issue 中粘贴原值，应立即停止发布并按安全政策处理。
