@@ -35,8 +35,12 @@
 - 直连规则：`rules/direct.list`
 - 掌阅插件：`plugins/ireader_splash_ad.lpx`
 - 掌阅脚本：`scripts/ireader_disable_screen.js`
+- 两步路插件：`plugins/liangbulu_ads.lpx`
+- 两步路脚本：`scripts/liangbulu_disable_ads.js`
 
 掌阅插件处理 `https://saad.ms.zhangyue.net/ad/cfg` 的响应，只修改 `slotId === "SCREEN"` 的规则并关闭开屏广告相关开关。
+
+两步路插件处理 `helper.2bulu.com` 的广告配置和开屏内容响应，关闭开屏与插屏广告配置并清空开屏内容；不拦截第三方广告素材域名。
 
 ## 敏感输入处理
 
