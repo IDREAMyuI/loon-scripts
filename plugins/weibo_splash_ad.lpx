@@ -1,11 +1,12 @@
 #!name=微博广告净化
-#!desc=清空微博开屏广告并过滤推荐信息流中的明确广告项
+#!desc=清空微博实时、预加载和缓存开屏广告，并过滤推荐信息流中的明确广告项
 #!author=IDREAMyuI
 #!loon_version=3.5.0(975)
 
 [Script]
-http-response ^https:\/\/(?:bootpreload\.uve\.weibo\.com\/v2\/ad\/preload|wbapp\.uve\.weibo\.com\/wbapplua\/wbpullad\.lua)(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/weibo_disable_splash.js,requires-body=true,binary-body-mode=false,timeout=10,tag=微博关闭开屏广告
-http-response ^https:\/\/api\.weibo\.cn\/2\/statuses\/container_timeline_hot(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/weibo-feed-ads/scripts/weibo_filter_feed_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=微博过滤信息流广告
+http-response ^https:\/\/(?:bootpreload\.uve\.weibo\.com\/v2\/ad\/preload|wbapp\.uve\.weibo\.com\/wbapplua\/wbpullad\.lua)(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/weibo-feed-ads/scripts/weibo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=微博关闭开屏广告
+http-response ^https:\/\/bootrealtime\.uve\.weibo\.com\/v3\/ad\/realtime(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/weibo-feed-ads/scripts/weibo_disable_ads.js,requires-body=true,binary-body-mode=true,timeout=10,tag=微博关闭实时开屏广告
+http-response ^https:\/\/api\.weibo\.cn\/2\/statuses\/container_timeline_hot(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/weibo-feed-ads/scripts/weibo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=微博过滤信息流广告
 
 [Mitm]
-hostname=bootpreload.uve.weibo.com,wbapp.uve.weibo.com,api.weibo.cn
+hostname=bootpreload.uve.weibo.com,wbapp.uve.weibo.com,bootrealtime.uve.weibo.com,api.weibo.cn
