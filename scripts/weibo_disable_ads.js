@@ -114,19 +114,33 @@ function handleRealtimeSplash() {
 
       if (partName === "realtime") {
         const obj = JSON.parse(decoder.decode(partBody));
-        if (!Array.isArray(obj?.ads)) throw new Error("unexpected realtime structure");
+        if (!isObject(obj)) throw new Error("unexpected realtime structure");
 
-        matched = obj.ads.length;
-        obj.ads = [];
-        keptParts.push(
-          concatBytes([
-            boundary,
-            encoder.encode("\r\n"),
-            body.slice(partStart, headerEnd + separator.length),
-            encoder.encode(JSON.stringify(obj)),
-            encoder.encode("\r\n")
-          ])
-        );
+        if (!hasOwn(obj, "ads")) {
+          if (!hasOwn(obj, "code")) throw new Error("unexpected realtime structure");
+          keptParts.push(
+            concatBytes([
+              boundary,
+              encoder.encode("\r\n"),
+              body.slice(partStart, partEnd),
+              encoder.encode("\r\n")
+            ])
+          );
+        } else {
+          if (!Array.isArray(obj.ads)) throw new Error("unexpected realtime ads");
+
+          matched = obj.ads.length;
+          obj.ads = [];
+          keptParts.push(
+            concatBytes([
+              boundary,
+              encoder.encode("\r\n"),
+              body.slice(partStart, headerEnd + separator.length),
+              encoder.encode(JSON.stringify(obj)),
+              encoder.encode("\r\n")
+            ])
+          );
+        }
       } else if (/^res_multipart_key_/i.test(partName)) {
         removedAssets += 1;
       } else {
@@ -210,3 +224,4 @@ if (/\/v3\/ad\/realtime(?:\?|$)/.test(url)) {
 } else {
   handleJsonResponse();
 }
+
