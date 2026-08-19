@@ -1,3 +1,8 @@
+/**
+ * App: 掌阅 iReader
+ * Purpose: 关闭开屏广告相关配置
+ * Updated: 2026-08-05
+ */
 const body = $response.body;
 
 if (!body) {
