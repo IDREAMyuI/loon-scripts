@@ -1,3 +1,8 @@
+/**
+ * App: 两步路
+ * Purpose: 关闭开屏和插屏广告
+ * Updated: 2026-08-06
+ */
 const body = $response.body;
 
 if (!body) {

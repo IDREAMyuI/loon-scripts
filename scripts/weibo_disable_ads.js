@@ -1,3 +1,8 @@
+/**
+ * App: 微博
+ * Purpose: 移除实时、预加载和缓存开屏广告，并过滤推荐信息流中的明确广告项
+ * Updated: 2026-08-19
+ */
 const body = $response.body;
 const url = $request.url || "";
 

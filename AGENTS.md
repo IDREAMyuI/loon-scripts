@@ -1,6 +1,10 @@
 # 仓库维护约束
 
-本文件是本仓库面向 Codex 及其他维护者的约束来源。修改任何配置、规则、插件、脚本或说明前，应先阅读本文件和 `SECURITY.md`。
+> Last reviewed: 2026-08-19
+
+本文件是本仓库面向 Codex 及其他维护者的稳定约束来源。修改任何配置、规则、插件、脚本或说明前，应先阅读本文件和 `SECURITY.md`。
+
+容易变化的具体接口、字段和文件功能应写在对应源码附近；已经验证并生效的变更写入 `CHANGELOG.md`，不在本文件重复维护。
 
 ## 项目目标
 
@@ -26,24 +30,6 @@
 - Sub-Store 官方插件保持独立，不复制进自制插件。
 - 一个 App 使用一个独立插件；同一 App 内始终一起启用的功能可以合并。
 
-## 当前功能
-
-- 主配置：`config/Loon_Public_v2.conf`
-- OpenAI 规则：`rules/openai.list`
-- 直连规则：`rules/direct.list`
-- 掌阅插件：`plugins/ireader_splash_ad.lpx`
-- 掌阅脚本：`scripts/ireader_disable_screen.js`
-- 两步路插件：`plugins/liangbulu_ads.lpx`
-- 两步路脚本：`scripts/liangbulu_disable_ads.js`
-- 微博插件：`plugins/weibo_splash_ad.lpx`
-- 微博脚本：`scripts/weibo_disable_splash.js`
-
-掌阅插件处理 `https://saad.ms.zhangyue.net/ad/cfg` 的响应，只修改 `slotId === "SCREEN"` 的规则并关闭开屏广告相关开关。
-
-两步路插件处理 `helper.2bulu.com` 的广告配置和开屏内容响应，关闭开屏与插屏广告配置并清空开屏内容；不拦截第三方广告素材域名。
-
-微博插件只处理 `bootpreload.uve.weibo.com/v2/ad/preload` 和 `wbapp.uve.weibo.com/wbapplua/wbpullad.lua` 的响应，分别清空开屏预加载与缓存广告数组；不拦截广告策略、统计、点击或素材域名。
-
 ## 敏感输入处理
 
 用户提供的抓包、HAR、日志、截图、二维码、压缩包、数据库、证书和配置备份默认按敏感材料处理，即使用户未特别标注。
@@ -64,7 +50,16 @@
 3. 日志不得输出完整请求头、响应正文、用户标识或广告请求中的追踪参数。
 4. 解析失败或响应结构变化时保持原响应，不生成包含调试数据的新响应。
 5. 仓库中的测试样本优先人工构造；不得直接使用真实 HAR、真实账号响应或未经验证的第三方样本。
-6. 一个 App 一个插件；新增 hostname、脚本权限或数据处理范围必须在计划中明确列出。
+6. 新增 hostname、脚本权限或数据处理范围必须在修改计划中明确列出。
+
+## 文档与日期维护
+
+- `README.md` 只保留稳定的项目入口、目录职责和使用说明，不重复维护具体接口或脚本清单。
+- `AGENTS.md` 只保留长期约束和维护流程；不能把当前实现细节当作不可改变的设计。
+- `CHANGELOG.md` 记录经过确认的功能、配置、安全、兼容性和结构变化；待验证内容放在 `Unreleased`。
+- `config/`、`rules/`、`plugins/` 和 `scripts/` 中的公开文件使用 `Updated: YYYY-MM-DD` 标注最后一次有效修改日期。
+- 只有功能、行为、兼容性或有效说明发生变化时才更新日期；纯格式整理不刷新日期。
+- Markdown 文档只在实际复核内容时更新 `Last reviewed`，不得为了统一日期而制造虚假的新鲜度。
 
 ## 修改流程
 
@@ -83,9 +78,3 @@
    - 配置、规则、插件和脚本的 Raw 地址是否可读；
    - 是否误提交抓包、HAR、日志、截图、二维码、证书、压缩包或真实测试响应；
    - 代码、注释、日志和测试数据中是否残留可识别个人或设备的信息。
-
-## 已确认的协议事实
-
-- 节点协议包括 Shadowsocks、VLESS Reality Vision 和 Hysteria2。
-- Sub-Store 的 Loon 预览中 VLESS 输出包含 `flow=xtls-rprx-vision`。
-- 地区筛选需要兼容节点名称中的 `JP`、`TW`、`HK` 和 `HKT` 等独立代码。
