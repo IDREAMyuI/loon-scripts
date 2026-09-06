@@ -2,6 +2,7 @@
 #!desc=清空微博实时、预加载和缓存开屏广告，并过滤推荐信息流中的明确广告项
 #!author=IDREAMyuI
 #!loon_version=3.5.0(975)
+# Updated: 2026-08-19
 
 [Script]
 http-response ^https:\/\/(?:bootpreload\.uve\.weibo\.com\/v2\/ad\/preload|wbapp\.uve\.weibo\.com\/wbapplua\/wbpullad\.lua)(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/weibo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=微博关闭开屏广告
