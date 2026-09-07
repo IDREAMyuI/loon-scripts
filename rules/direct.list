@@ -1,6 +1,13 @@
-# 局域网、本机和中国大陆直连
-# Updated: 2026-08-06
+# Apple 账号、局域网、本机和中国大陆直连
+# Updated: 2026-09-07
 # 本文件不包含策略名称；策略由主配置 [Remote Rule] 映射为 DIRECT。
+
+# Apple 账号认证：仅匹配官方列出的精确主机。
+# 来源：https://support.apple.com/en-us/101555 （Apple Account）
+DOMAIN,account.apple.com
+DOMAIN,appleid.cdn-apple.com
+DOMAIN,idmsa.apple.com
+DOMAIN,gsa.apple.com
 
 # IPv4 局域网和本地地址。
 IP-CIDR,10.0.0.0/8
