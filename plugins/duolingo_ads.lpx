@@ -1,0 +1,12 @@
+#!name=多邻国课后插屏净化（测试版）
+#!desc=仅过滤课后 interstitialAd 展示入口；保留其他项目，实际效果及奖励流程待验证
+#!author=IDREAMyuI
+#!loon_version=3.5.0(975)
+# Updated: 2026-09-14
+# 测试版脚本引用当前分支，验证后再切换正式地址。
+
+[Script]
+http-response ^https:\/\/ios-api-2\.duolingo\.cn\/2023-05-23\/messaging\/get-messages\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-post-lesson-ads/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤课后插屏
+
+[Mitm]
+hostname=ios-api-2.duolingo.cn
