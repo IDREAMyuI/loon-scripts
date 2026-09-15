@@ -1,12 +1,49 @@
-// Updated: 2026-09-14
-// 多邻国课后插屏：只过滤 get-messages 中单一类型的 interstitialAd 入口。
+// Updated: 2026-09-15
+// 课后插屏入口及自有视频推广清单；未知结构原样放行。
 // 不修改会员、奖励、学习进度或广告 SDK；日志计数不代表真机播放结果。
 (function () {
-  var prefix = "多邻国课后：";
+  var prefix = "多邻国课后[v2]：";
   var result = {};
   try {
     var target = /^https:\/\/ios-api-2\.duolingo\.cn\/2023-05-23\/messaging\/get-messages\/?(?:\?|$)/;
-    if (!target.test($request.url)) {
+    var fallback = /^https:\/\/ios-api-2\.duolingo\.cn\/2026-03-09\/plus-promotions\/get-fallback-ads\/?(?:\?|$)/;
+    var videos = /^https:\/\/ios-api-2\.duolingo\.cn\/2026-03-06\/plus-promotions\/get-ad-urls\/?(?:\?|$)/;
+    if (fallback.test($request.url) || videos.test($request.url)) {
+      var promo = JSON.parse($response.body);
+      var isFallback = fallback.test($request.url);
+      var label = isFallback ? "备用视频推广" : "自有视频推广";
+      if (!promo || typeof promo !== "object" ||
+          (isFallback ? !Array.isArray(promo.ads) :
+          (!promo.ads || typeof promo.ads !== "object" || Array.isArray(promo.ads)))) {
+        console.log(prefix + label + "结构不匹配，已原样放行");
+      } else {
+        var count = 0;
+        var isPromoVideo = function (url) {
+          return typeof url === "string" &&
+            /^https:\/\/simg-ssl\.duolingo\.(?:com|cn)\/videos\/promo\/DuolingoInterstitial_[^/?#]+\.mp4(?:\?|$)/.test(url);
+        };
+        if (isFallback) {
+          promo.ads = promo.ads.filter(function (ad) {
+            var remove = ad && ad.variantClass === "StaticDuolingoVideoVariant" &&
+              (ad.offerOrigin === "INTERSTITIAL_PLUS_VIDEO" ||
+               ad.offerOrigin === "INTERSTITIAL_PLUS_VIDEO_FAMILY_PLAN") && isPromoVideo(ad.videoURL);
+            if (remove) count++;
+            return !remove;
+          });
+        } else {
+          Object.keys(promo.ads).forEach(function (key) {
+            if (isPromoVideo(promo.ads[key])) { delete promo.ads[key]; count++; }
+          });
+        }
+        var remaining = isFallback ? promo.ads.length : Object.keys(promo.ads).length;
+        if (count) {
+          result = { body: JSON.stringify(promo) };
+          console.log(prefix + label + "已移除 " + count + " 项，保留 " + remaining + " 项");
+        } else {
+          console.log(prefix + label + "无可识别项目，保留 " + remaining + " 项");
+        }
+      }
+    } else if (!target.test($request.url)) {
       console.log(prefix + "接口不匹配，已原样放行");
     } else {
       var data = JSON.parse($response.body);
