@@ -1,14 +1,14 @@
-#!name=多邻国课后插屏净化（测试版）
-#!desc=过滤课后插屏入口、自有推广视频及备用视频；效果、等待界面及奖励流程待验证
+#!name=多邻国课后插屏净化
+#!desc=过滤课后插屏入口、自有推广视频及备用视频；课后去广告及结算已验证；备用视频和奖励流程未单独验证
 #!author=IDREAMyuI
 #!loon_version=3.5.0(975)
-# Updated: 2026-09-15
-# 测试版脚本引用当前分支，验证后再切换正式地址。
+# Updated: 2026-09-16
+# 正式脚本随 main 更新。
 
 [Script]
-http-response ^https:\/\/ios-api-2\.duolingo\.cn\/2023-05-23\/messaging\/get-messages\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-post-lesson-ads/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤课后插屏
+http-response ^https:\/\/ios-api-2\.duolingo\.cn\/2023-05-23\/messaging\/get-messages\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤课后插屏
 
-http-response ^https:\/\/ios-api-2\.duolingo\.cn\/(?:2026-03-09\/plus-promotions\/get-fallback-ads|2026-03-06\/plus-promotions\/get-ad-urls)\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-post-lesson-ads/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤自有视频推广
+http-response ^https:\/\/ios-api-2\.duolingo\.cn\/(?:2026-03-09\/plus-promotions\/get-fallback-ads|2026-03-06\/plus-promotions\/get-ad-urls)\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤自有视频推广
 
 [Mitm]
 hostname=ios-api-2.duolingo.cn
