@@ -2,8 +2,9 @@
 // 课后插屏入口及自有视频推广清单；未知结构原样放行。
 // 不修改会员、奖励、学习进度或广告 SDK；日志计数不代表真机播放结果。
 (function () {
-  var prefix = "多邻国课后[v3-test]：";
+  var prefix = "多邻国课后[v4-test]：";
   var result = {};
+  var recoveredErrorSuffix = false;
   var label = "已有广告入口";
   var stage = "响应";
   var isObject = function (value) {
@@ -20,6 +21,25 @@
   };
   var knownKeys = function (obj, keys) {
     return Object.keys(obj).every(function (key) { return keys.indexOf(key) !== -1; });
+  };
+  // 捕获中出现完整 JSON 后拼接 Tengine 400 错误页。只识别这一完整形态，
+  // 不接受任意尾部、第二份 JSON、其他状态或被截断的正文。
+  var parseResponse = function (text) {
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      if (typeof text !== "string" || $response.status !== 200) throw error;
+      var marker = "HTTP/1.1 400 Bad Request\r\n";
+      var offset = text.lastIndexOf(marker);
+      if (offset <= 0 || text.length - offset > 2048) throw error;
+      var suffix = text.slice(offset);
+      var knownError = /^HTTP\/1\.1 400 Bad Request\r\nServer: Tengine\r\nDate: (?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{1,2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2} GMT\r\nContent-Type: text\/html\r\nConnection: close\r\n\r\n<!DOCTYPE HTML PUBLIC "-\/\/IETF\/\/DTD HTML 2\.0\/\/EN">\s*<html>\s*<head>\s*<title>400 Bad Request<\/title>\s*<\/head>\s*<body>\s*<center>\s*<h1>400 Bad Request<\/h1>\s*<\/center>\s*<hr\s*\/?>\s*Powered by Tengine\s*<hr\s*\/?>\s*<center>Tengine<\/center>\s*<\/body>\s*<\/html>\s*$/i;
+      if (!knownError.test(suffix)) throw error;
+      var object = JSON.parse(text.slice(0, offset));
+      if (!isObject(object)) throw error;
+      recoveredErrorSuffix = true;
+      return object;
+    }
   };
   try {
     var legacy = /^https:\/\/ios-api-2\.duolingo\.cn\/2021-05-05\/plus-promotions\/decisions\/[0-9]+\/?(?:\?|$)/;
@@ -51,7 +71,7 @@
           console.log(prefix + label + "响应类型不匹配，已原样放行");
         } else {
           stage = "响应";
-          var decision = JSON.parse($response.body);
+          var decision = parseResponse($response.body);
           if (isLegacy) {
             if (!isObject(decision) || !Array.isArray(decision.promotions)) {
               console.log(prefix + label + "响应结构不匹配，已原样放行");
@@ -104,7 +124,7 @@
     } else if (fallback.test($request.url) || videos.test($request.url)) {
       var isFallback = fallback.test($request.url);
       label = isFallback ? "备用视频推广" : "自有视频推广";
-      var promo = JSON.parse($response.body);
+      var promo = parseResponse($response.body);
       if (!promo || typeof promo !== "object" ||
           (isFallback ? !Array.isArray(promo.ads) :
           (!promo.ads || typeof promo.ads !== "object" || Array.isArray(promo.ads)))) {
@@ -136,7 +156,7 @@
       console.log(prefix + "接口不匹配，已原样放行");
     } else {
       label = "课后消息入口";
-      var data = JSON.parse($response.body);
+      var data = parseResponse($response.body);
       if (!data || typeof data !== "object" || !Array.isArray(data.sessionEndMessageDisplayInfo)) {
         console.log(prefix + "响应结构不匹配，已原样放行");
       } else {
@@ -161,6 +181,10 @@
     }
   } catch (_) {
     console.log(prefix + label + stage + "解析或处理失败，已原样放行");
+  }
+  if (recoveredErrorSuffix) {
+    console.log(prefix + "识别到 JSON 后拼接的 400 错误页；" +
+      (Object.prototype.hasOwnProperty.call(result, "body") ? "已按广告标记处理前段 JSON" : "未修改原响应"));
   }
   $done(result);
 })();

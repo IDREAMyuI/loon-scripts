@@ -156,3 +156,62 @@ test('所有四条插件规则引用同一分支脚本，MITM 不扩大', () => 
   assert(refs.every((url) => url === 'https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-session-end-decisions/scripts/duolingo_disable_ads.js'));
   assert.equal(plugin.match(/^hostname=(.*)$/m)[1], 'ios-api-2.duolingo.cn');
 });
+
+// 仅构造通用服务器错误页；日期为人工测试值，不包含抓包正文或业务标识。
+const errorSuffix = 'HTTP/1.1 400 Bad Request\r\n' +
+  'Server: Tengine\r\nDate: Sat, 01 Jan 2000 00:00:00 GMT\r\n' +
+  'Content-Type: text/html\r\nConnection: close\r\n\r\n' +
+  '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">\r\n' +
+  '<html>\r\n<head><title>400 Bad Request</title></head>\r\n<body>\r\n' +
+  '<center><h1>400 Bad Request</h1></center>\r\n' +
+  '<hr/>Powered by Tengine<hr><center>tengine</center>\r\n</body>\r\n</html>\r\n';
+const legacyAds = { promotions: [{ type: 'NETWORK_INTERSTITIAL_SESSION_END' }, { type: 'PLUS_SESSION_END' }], other: 1 };
+test('已知错误页：保留完整前段 JSON 的非广告字段并移除课后广告', () => {
+  const out = invoke(legacy, JSON.stringify(legacyAds) + errorSuffix, legacyRequest);
+  assert.deepEqual(output(out), { promotions: [], other: 1 });
+  assert.match(out.log, /识别到 JSON 后拼接的 400 错误页.*已按广告标记处理/);
+});
+test('已知错误页：既有课后消息入口也能精准处理', () => {
+  const body = { sessionEndMessageDisplayInfo: [{ sessionEndMessageId: { interstitialAd: {} } }, { sessionEndMessageId: { reward: {} } }], other: 1 };
+  const out = invoke(messages, JSON.stringify(body) + errorSuffix);
+  assert.deepEqual(output(out), { ...body, sessionEndMessageDisplayInfo: body.sessionEndMessageDisplayInfo.slice(1) });
+});
+test('已知错误页：集中自动课后视频可处理，奖励场景仍保持字节不变', () => {
+  const body = JSON.stringify(response()) + errorSuffix;
+  assert.deepEqual(invoke(central, body, centralRequest).result, { body: '' });
+  unchanged(invoke(central, body, { clientParams: { plusPromotionAdType: 'rewarded-video' } }));
+  unchanged(invoke(legacy, JSON.stringify(legacyAds) + errorSuffix, { appLocation: 'SESSION_START' }));
+});
+test('已知错误页但无广告时不做网络正文修复', () => {
+  const out = invoke(legacy, JSON.stringify({ promotions: [] }) + errorSuffix, legacyRequest);
+  unchanged(out); assert.match(out.log, /未修改原响应/);
+  unchanged(invoke(messages, JSON.stringify({ sessionEndMessageDisplayInfo: [] }) + errorSuffix));
+});
+test('JSON 字符串内的花括号、转义及错误页标记不会截断合法数据', () => {
+  const data = { ...legacyAds, unrelated: 'quoted } { "\\\n' + errorSuffix };
+  const out = invoke(legacy, JSON.stringify(data) + errorSuffix, legacyRequest);
+  assert.equal(output(out).unrelated, data.unrelated);
+  assert.deepEqual(output(invoke(legacy, JSON.stringify(data), legacyRequest)).unrelated, data.unrelated);
+});
+for (const [name, suffix] of [
+  ['other-status', errorSuffix.replaceAll('400 Bad Request', '403 Forbidden')],
+  ['other-server', errorSuffix.replace('Server: Tengine', 'Server: Unknown')],
+  ['other-content-type', errorSuffix.replace('Content-Type: text/html', 'Content-Type: application/json')],
+  ['injected-header', errorSuffix.replace('Connection: close', 'X-Unknown: value\r\nConnection: close')],
+  ['changed-page', errorSuffix.replace('Powered by Tengine', 'SYNTHETIC_PRIVATE_MARKER')],
+  ['truncated-page', errorSuffix.slice(0, -20)],
+  ['trailing-data', errorSuffix + 'SYNTHETIC_PRIVATE_MARKER'],
+  ['second-json', '{"other":true}'],
+  ['oversized', errorSuffix.replace('<body>', '<body>' + ' '.repeat(2200))],
+]) {
+  test('未知尾段原样放行：' + name, () => {
+    const out = invoke(legacy, JSON.stringify(legacyAds) + suffix, legacyRequest);
+    unchanged(out); assert.match(out.log, /解析或处理失败/);
+  });
+}
+test('前段 JSON 截断、多份错误页及外层非 200 状态全部放行', () => {
+  unchanged(invoke(legacy, JSON.stringify(legacyAds).slice(0, -1) + errorSuffix, legacyRequest));
+  unchanged(invoke(legacy, JSON.stringify(legacyAds) + errorSuffix + errorSuffix, legacyRequest));
+  unchanged(invoke(messages, JSON.stringify({ sessionEndMessageDisplayInfo: [{ sessionEndMessageId: { interstitialAd: {} } }] }) + errorSuffix, undefined, { response: { status: 500 } }));
+  unchanged(invoke(legacy, errorSuffix, legacyRequest));
+});
