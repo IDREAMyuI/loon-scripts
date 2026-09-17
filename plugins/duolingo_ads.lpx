@@ -1,14 +1,18 @@
-#!name=多邻国课后插屏净化
-#!desc=过滤课后插屏入口、自有推广视频及备用视频；课后去广告及结算已验证；备用视频和奖励流程未单独验证
+#!name=测试版·多邻国课后插屏净化
+#!desc=补充旧版课后广告决策及集中视频决策；新增路径按请求区分自动课后与奖励场景；本版待实机验证
 #!author=IDREAMyuI
 #!loon_version=3.5.0(975)
-# Updated: 2026-09-16
-# 正式脚本随 main 更新。
+# Updated: 2026-09-17
+# 独立分支测试版：先停用正式多邻国插件，避免重复执行。
+# 新增路径仅改写自动课后广告决策，不修改奖励、会员、课程结算；不拦截第三方 SDK。
 
 [Script]
-http-response ^https:\/\/ios-api-2\.duolingo\.cn\/2023-05-23\/messaging\/get-messages\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤课后插屏
+http-response ^https:\/\/ios-api-2\.duolingo\.cn\/2023-05-23\/messaging\/get-messages\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-session-end-decisions/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤课后插屏
 
-http-response ^https:\/\/ios-api-2\.duolingo\.cn\/(?:2026-03-09\/plus-promotions\/get-fallback-ads|2026-03-06\/plus-promotions\/get-ad-urls)\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤自有视频推广
+http-response ^https:\/\/ios-api-2\.duolingo\.cn\/(?:2026-03-09\/plus-promotions\/get-fallback-ads|2026-03-06\/plus-promotions\/get-ad-urls)\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-session-end-decisions/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤自有视频推广
+
+http-response ^https:\/\/ios-api-2\.duolingo\.cn\/2021-05-05\/plus-promotions\/decisions\/[0-9]+\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-session-end-decisions/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤旧版课后广告决策
+http-response ^https:\/\/ios-api-2\.duolingo\.cn\/plus-promotions\/ml-predictions\/centralized-decision\/?(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-session-end-decisions/scripts/duolingo_disable_ads.js,requires-body=true,binary-body-mode=false,timeout=10,tag=多邻国过滤集中课后视频决策
 
 [Mitm]
 hostname=ios-api-2.duolingo.cn

@@ -1,27 +1,116 @@
-// Updated: 2026-09-15
+// Updated: 2026-09-17
 // 课后插屏入口及自有视频推广清单；未知结构原样放行。
 // 不修改会员、奖励、学习进度或广告 SDK；日志计数不代表真机播放结果。
 (function () {
-  var prefix = "多邻国课后[v2]：";
+  var prefix = "多邻国课后[v3-test]：";
   var result = {};
+  var label = "已有广告入口";
+  var stage = "响应";
+  var isObject = function (value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  };
+  var isPromoVideo = function (url) {
+    return typeof url === "string" &&
+      /^https:\/\/simg-ssl\.duolingo\.(?:com|cn)\/videos\/promo\/DuolingoInterstitial_[^/?#]+\.mp4(?:\?|$)/.test(url);
+  };
+  // 仅处理本次抓包确认的自动课后广告种类，不匹配奖励广告。
+  var isSessionEndPromotion = function (item) {
+    return isObject(item) &&
+      (item.type === "NETWORK_INTERSTITIAL_SESSION_END" || item.type === "PLUS_SESSION_END");
+  };
+  var knownKeys = function (obj, keys) {
+    return Object.keys(obj).every(function (key) { return keys.indexOf(key) !== -1; });
+  };
   try {
+    var legacy = /^https:\/\/ios-api-2\.duolingo\.cn\/2021-05-05\/plus-promotions\/decisions\/[0-9]+\/?(?:\?|$)/;
+    var centralized = /^https:\/\/ios-api-2\.duolingo\.cn\/plus-promotions\/ml-predictions\/centralized-decision\/?(?:\?|$)/;
     var target = /^https:\/\/ios-api-2\.duolingo\.cn\/2023-05-23\/messaging\/get-messages\/?(?:\?|$)/;
     var fallback = /^https:\/\/ios-api-2\.duolingo\.cn\/2026-03-09\/plus-promotions\/get-fallback-ads\/?(?:\?|$)/;
     var videos = /^https:\/\/ios-api-2\.duolingo\.cn\/2026-03-06\/plus-promotions\/get-ad-urls\/?(?:\?|$)/;
-    if (fallback.test($request.url) || videos.test($request.url)) {
-      var promo = JSON.parse($response.body);
+    if (legacy.test($request.url) || centralized.test($request.url)) {
+      var isLegacy = legacy.test($request.url);
+      label = isLegacy ? "旧版课后决策" : "集中课后视频决策";
+      // 请求场景与响应广告标记必须同时成立；缺少请求体时不能猜测场景。
+      if ($request.method !== "POST" || $response.status !== 200) {
+        console.log(prefix + label + "方法或状态不匹配，已原样放行");
+      } else if (typeof $request.body !== "string" || !$request.body) {
+        console.log(prefix + label + "缺少可识别请求体，已原样放行");
+      } else {
+        stage = "请求";
+        var requestData = JSON.parse($request.body);
+        var scene = isObject(requestData) ?
+          (isLegacy ? requestData.appLocation :
+            (isObject(requestData.clientParams) ? requestData.clientParams.plusPromotionAdType : undefined)) : undefined;
+        var expectedScene = isLegacy ? "SESSION_END" : "session-end-interstitial";
+        if (scene !== expectedScene) {
+          console.log(prefix + label +
+            (scene === "SESSION_START" || scene === "rewarded-video" ? "非自动课后场景，已原样放行" : "请求场景未匹配，已原样放行"));
+        } else if ($response.body === "") {
+          console.log(prefix + label + "未返回广告决策，已原样放行");
+        } else if (typeof $response.body !== "string") {
+          console.log(prefix + label + "响应类型不匹配，已原样放行");
+        } else {
+          stage = "响应";
+          var decision = JSON.parse($response.body);
+          if (isLegacy) {
+            if (!isObject(decision) || !Array.isArray(decision.promotions)) {
+              console.log(prefix + label + "响应结构不匹配，已原样放行");
+            } else {
+              var networkCount = 0;
+              var ownCount = 0;
+              var promotions = decision.promotions.filter(function (item) {
+                if (!isSessionEndPromotion(item)) return true;
+                if (item.type === "NETWORK_INTERSTITIAL_SESSION_END") networkCount++;
+                else ownCount++;
+                return false;
+              });
+              if (networkCount + ownCount > 0) {
+                decision.promotions = promotions;
+                result = { body: JSON.stringify(decision) };
+                console.log(prefix + label + "已移除第三方插屏决策 " + networkCount +
+                  " 项、自有推广决策 " + ownCount + " 项，保留 " + promotions.length + " 项");
+              } else {
+                console.log(prefix + label + "未发现明确课后广告，保留 " + promotions.length + " 项");
+              }
+            }
+          } else {
+            var decisions = isObject(decision) ? decision.decisions : null;
+            var enriched = isObject(decisions) ? decisions.enriched : null;
+            var general = isObject(decisions) ? decisions.general : null;
+            // 整个响应为空是本接口实际出现过的无决策形态。
+            // 只在完整响应属于一个已确认课后视频决策时使用；混合/新增结构一律保留。
+            if (!isObject(decision) || !knownKeys(decision, ["decisions", "trackingProperties"]) ||
+                (Object.prototype.hasOwnProperty.call(decision, "trackingProperties") && decision.trackingProperties !== null) ||
+                !isObject(decisions) || !knownKeys(decisions, ["general", "enriched"]) ||
+                !isObject(general) || !knownKeys(general, ["result", "contextTrackingProperties"]) ||
+                typeof general.result !== "string" || !isObject(enriched) ||
+                !knownKeys(enriched, ["stringID", "variantClass", "contextTrackingProperties",
+                  "adStartBackgroundColor", "videoURL", "madJsonURL", "isModular", "iconStyle",
+                  "offerOrigin", "shouldHideCloseButton", "standardButtonsState", "madWrapper",
+                  "madWorldCharacters", "numWorldCharacters", "madValuePropositions"]) ||
+                enriched.stringID !== general.result || enriched.madJsonURL !== null) {
+              console.log(prefix + label + "响应结构不匹配，已原样放行");
+            } else if (enriched.variantClass === "StaticDuolingoVideoVariant" &&
+                (enriched.offerOrigin === "INTERSTITIAL_PLUS_VIDEO" || enriched.offerOrigin === "INTERSTITIAL_PLUS_VIDEO_FAMILY_PLAN") &&
+                isPromoVideo(enriched.videoURL)) {
+              result = { body: "" };
+              console.log(prefix + label + "已移除自有推广决策 1 项，返回空决策响应");
+            } else {
+              console.log(prefix + label + "未发现可确认的课后视频，已原样放行");
+            }
+          }
+        }
+      }
+    } else if (fallback.test($request.url) || videos.test($request.url)) {
       var isFallback = fallback.test($request.url);
-      var label = isFallback ? "备用视频推广" : "自有视频推广";
+      label = isFallback ? "备用视频推广" : "自有视频推广";
+      var promo = JSON.parse($response.body);
       if (!promo || typeof promo !== "object" ||
           (isFallback ? !Array.isArray(promo.ads) :
           (!promo.ads || typeof promo.ads !== "object" || Array.isArray(promo.ads)))) {
         console.log(prefix + label + "结构不匹配，已原样放行");
       } else {
         var count = 0;
-        var isPromoVideo = function (url) {
-          return typeof url === "string" &&
-            /^https:\/\/simg-ssl\.duolingo\.(?:com|cn)\/videos\/promo\/DuolingoInterstitial_[^/?#]+\.mp4(?:\?|$)/.test(url);
-        };
         if (isFallback) {
           promo.ads = promo.ads.filter(function (ad) {
             var remove = ad && ad.variantClass === "StaticDuolingoVideoVariant" &&
@@ -46,6 +135,7 @@
     } else if (!target.test($request.url)) {
       console.log(prefix + "接口不匹配，已原样放行");
     } else {
+      label = "课后消息入口";
       var data = JSON.parse($response.body);
       if (!data || typeof data !== "object" || !Array.isArray(data.sessionEndMessageDisplayInfo)) {
         console.log(prefix + "响应结构不匹配，已原样放行");
@@ -70,7 +160,7 @@
       }
     }
   } catch (_) {
-    console.log(prefix + "响应解析或处理失败，已原样放行");
+    console.log(prefix + label + stage + "解析或处理失败，已原样放行");
   }
   $done(result);
 })();
