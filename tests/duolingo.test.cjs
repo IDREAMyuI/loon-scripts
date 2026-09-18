@@ -215,3 +215,33 @@ test('前段 JSON 截断、多份错误页及外层非 200 状态全部放行', 
   unchanged(invoke(messages, JSON.stringify({ sessionEndMessageDisplayInfo: [{ sessionEndMessageId: { interstitialAd: {} } }] }) + errorSuffix, undefined, { response: { status: 500 } }));
   unchanged(invoke(legacy, errorSuffix, legacyRequest));
 });
+
+test('v5 读取异常不泄露错误内容且仅原样放行一次', () => {
+  for (const field of ['request', 'response']) {
+    const req = { url: legacy, method: 'POST', body: JSON.stringify(legacyRequest) };
+    const res = { status: 200, body: '{"promotions":[]}' };
+    Object.defineProperty(field === 'request' ? req : res, 'body', { get() { throw new Error('SYNTHETIC_PRIVATE_MARKER'); } });
+    const logs = [], results = [];
+    vm.runInNewContext(source, { $request: req, $response: res, console: { log: x => logs.push(x) }, $done: x => results.push(x) });
+    assert.equal(results.length, 1); assert.equal(JSON.stringify(results[0]), '{}');
+    assert.match(logs.join('\n'), /异常阶段：.*体读取前/);
+    assert(!logs.join('').includes('SYNTHETIC_PRIVATE_MARKER'));
+  }
+});
+test('v5 日志异常不影响过滤，返回异常不重试也不泄露', () => {
+  for (const failLog of [false, true]) {
+    let calls = 0; const logs = [];
+    vm.runInNewContext(source, { $request: { url: legacy, method: 'POST', body: JSON.stringify(legacyRequest) },
+      $response: { status: 200, body: '{"promotions":[{"type":"PLUS_SESSION_END"}]}' },
+      console: { log: x => { if (failLog) throw new Error('SYNTHETIC_PRIVATE_MARKER'); logs.push(x); } },
+      $done: x => { calls++; assert.deepEqual(JSON.parse(x.body), { promotions: [] }); throw new Error('SYNTHETIC_PRIVATE_MARKER'); } });
+    assert.equal(calls, 1); assert(!logs.join('').includes('SYNTHETIC_PRIVATE_MARKER'));
+    if (!failLog) assert.match(logs.join('\n'), /返回调用异常；未重试/);
+  }
+});
+test('v5 阶段日志按读取解析返回顺序出现', () => {
+  const out = invoke(legacy, { promotions: [{ type: 'PLUS_SESSION_END' }] }, legacyRequest);
+  const stages = ['阶段：启动', '阶段：请求体读取前', '阶段：请求体读取后', '阶段：请求解析前', '阶段：请求解析后', '阶段：响应体读取前', '阶段：响应体读取后', '阶段：响应解析前', '阶段：响应解析后', '阶段：准备返回改写'];
+  let position = -1;
+  for (const stage of stages) { const next = out.log.indexOf(stage); assert(next > position); position = next; }
+});
