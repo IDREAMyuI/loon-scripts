@@ -241,7 +241,42 @@ test('v5 日志异常不影响过滤，返回异常不重试也不泄露', () =>
 });
 test('v5 阶段日志按读取解析返回顺序出现', () => {
   const out = invoke(legacy, { promotions: [{ type: 'PLUS_SESSION_END' }] }, legacyRequest);
-  const stages = ['阶段：启动', '阶段：请求体读取前', '阶段：请求体读取后', '阶段：请求解析前', '阶段：请求解析后', '阶段：响应体读取前', '阶段：响应体读取后', '阶段：响应解析前', '阶段：响应解析后', '阶段：准备返回改写'];
+  const stages = ['阶段=启动', '请求体读取前', '请求体读取后', '请求解析前', '请求解析后', '响应体读取前', '响应体读取后', '响应解析前', '响应解析后', '准备返回改写'];
   let position = -1;
   for (const stage of stages) { const next = out.log.indexOf(stage); assert(next > position); position = next; }
+});
+
+test('v6 UTF8字节数覆盖中文、表情及孤立代理项，输出紧凑且无正文', () => {
+  const data = { sessionEndMessageDisplayInfo: [], text: '中文😀\ud800' };
+  const req = '中😀\ud800';
+  const out = invoke(messages, data, req, { response: { headers: { 'Content-Length': '12' } } });
+  unchanged(out);
+  assert.match(out.log, new RegExp('请求UTF8字节=' + Buffer.byteLength(req)));
+  assert.match(out.log, new RegExp('响应UTF8字节=' + Buffer.byteLength(JSON.stringify(data))));
+  assert.match(out.log, /声明长度=12；状态=200；正文=完整JSON/);
+  assert(!out.log.includes('中文')); assert(out.log.split('\n').length <= 4);
+});
+test('v6 区分独立HTTP400、HTML、非法JSON和已确认拼接', () => {
+  const joined = invoke(legacy, JSON.stringify(legacyAds) + errorSuffix, legacyRequest);
+  assert.match(joined.log, /正文=JSON加已知HTTP400/);
+  assert.deepEqual(output(joined).promotions, []);
+  for (const [body, kind] of [['HTTP/1.1 400 Bad Request\r\nSYNTHETIC_PRIVATE_MARKER', 'HTTP400开头'], ['<html>SYNTHETIC_PRIVATE_MARKER</html>', 'HTML开头'], ['{broken', '其他或无效JSON']]) {
+    const out = invoke(messages, body); unchanged(out); assert(out.log.includes('正文=' + kind));
+  }
+});
+test('v6 非数字、多个声明长度和异常头不泄露也不影响过滤', () => {
+  for (const headers of [{ 'content-length': 'SYNTHETIC_PRIVATE_MARKER' }, { 'Content-Length': '1', 'content-length': '2' }, { 'content-length': '12345678901234567890' }]) {
+    const out = invoke(legacy, { promotions: [{ type: 'PLUS_SESSION_END' }] }, legacyRequest, { response: { headers } });
+    assert.deepEqual(output(out), { promotions: [] }); assert.match(out.log, /声明长度=无效/);
+  }
+});
+test('v6 诊断补读或头读取抛错不改变已完成过滤', () => {
+  const req = { url: messages, method: 'POST' }, res = { status: 200, body: JSON.stringify({ sessionEndMessageDisplayInfo: [{ sessionEndMessageId: { interstitialAd: {} } }] }) };
+  Object.defineProperty(req, 'body', { get() { throw new Error('SYNTHETIC_PRIVATE_MARKER'); } });
+  Object.defineProperty(res, 'headers', { get() { throw new Error('SYNTHETIC_PRIVATE_MARKER'); } });
+  const logs = [], results = [];
+  vm.runInNewContext(source, { $request: req, $response: res, console: { log: s => logs.push(s) }, $done: r => results.push(r) });
+  assert.equal(results.length, 1); assert.deepEqual(JSON.parse(results[0].body), { sessionEndMessageDisplayInfo: [] });
+  assert.match(logs.join('\n'), /请求UTF8字节=读取异常/); assert.match(logs.join('\n'), /声明长度=读取异常/);
+  assert(!logs.join('').includes('SYNTHETIC_PRIVATE_MARKER'));
 });

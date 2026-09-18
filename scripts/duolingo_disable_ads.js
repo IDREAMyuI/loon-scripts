@@ -2,11 +2,13 @@
 // 课后插屏入口及自有视频推广清单；未知结构原样放行。
 // 不修改会员、奖励、学习进度或广告 SDK；日志计数不代表真机播放结果。
 (function () {
-  var prefix = "多邻国课后[v5-test]：";
+  var prefix = "多邻国课后[v6-test]：";
   // 固定阶段日志不输出上下文或异常文本；日志故障不改变过滤结果。
   var phase = "启动";
   var log = function (message) { try { console.log(message); } catch (_) {} };
-  var checkpoint = function (name) { phase = name; log(prefix + "阶段：" + name); };
+  var phases = [];
+  var checkpoint = function (name) { phase = name; phases.push(name); };
+  log(prefix + "启动");
   checkpoint("启动");
   var bodies = {};
   var readBody = function (kind) {
@@ -16,6 +18,43 @@
     bodies[kind] = value;
     checkpoint(kind + "读取后");
     return value;
+  };
+  // 仅统计内存字符串的 UTF-8 字节数，不代表压缩后的线上字节数。
+  var byteLength = function (text) {
+    if (typeof text !== "string") return "非字符串";
+    var n = 0;
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charCodeAt(i);
+      if (c < 128) n++;
+      else if (c < 2048) n += 2;
+      else if (c >= 0xD800 && c <= 0xDBFF && i + 1 < text.length &&
+          text.charCodeAt(i + 1) >= 0xDC00 && text.charCodeAt(i + 1) <= 0xDFFF) { n += 4; i++; }
+      else n += 3;
+    }
+    return n;
+  };
+  var responseKind = "未解析";
+  var safeRead = function (read) { try { return read(); } catch (_) { return "读取异常"; } };
+  var bodySize = function (kind) {
+    // 诊断补读不能影响过滤或阶段；只在已有逻辑完成后进行。
+    return safeRead(function () {
+      var value = Object.prototype.hasOwnProperty.call(bodies, kind) ? bodies[kind] :
+        (kind === "请求体" ? $request.body : $response.body);
+      return typeof value === "undefined" ? "缺失" : byteLength(value);
+    });
+  };
+  var headerLength = function () {
+    return safeRead(function () {
+      var headers = $response.headers;
+      if (!headers || typeof headers !== "object") return "缺失";
+      var keys = Object.keys(headers).filter(function (k) { return k.toLowerCase() === "content-length"; });
+      if (keys.length === 0) return "缺失";
+      if (keys.length !== 1) return "无效";
+      var value = headers[keys[0]];
+      if (typeof value !== "number" && typeof value !== "string") return "无效";
+      var text = String(value);
+      return /^(?:0|[1-9][0-9]{0,8})$/.test(text) ? Number(text) : "无效";
+    });
   };
   var result = {};
   var recoveredErrorSuffix = false;
@@ -40,8 +79,12 @@
   // 不接受任意尾部、第二份 JSON、其他状态或被截断的正文。
   var parseResponse = function (text) {
     checkpoint("响应解析前");
+    responseKind = typeof text !== "string" ? "非字符串" : text === "" ? "空正文" :
+      /^HTTP\/1\.[01] 400 Bad Request\r\n/.test(text) ? "HTTP400开头" :
+      /^\s*(?:<!doctype\s+html|<html\b)/i.test(text) ? "HTML开头" : "其他或无效JSON";
     try {
       var parsed = JSON.parse(text);
+      responseKind = "完整JSON";
       checkpoint("响应解析后／过滤检查");
       return parsed;
     } catch (error) {
@@ -55,6 +98,7 @@
       var object = JSON.parse(text.slice(0, offset));
       if (!isObject(object)) throw error;
       checkpoint("响应后缀识别后／过滤检查");
+      responseKind = "JSON加已知HTTP400";
       recoveredErrorSuffix = true;
       return object;
     }
@@ -211,6 +255,13 @@
       (Object.prototype.hasOwnProperty.call(result, "body") ? "已按广告标记处理前段 JSON" : "未修改原响应"));
   }
   checkpoint(Object.prototype.hasOwnProperty.call(result, "body") ? "准备返回改写" : "准备原样放行");
+  var statusSummary = safeRead(function () {
+    var status = $response.status;
+    return typeof status === "number" && status >= 100 && status <= 599 && status % 1 === 0 ? status : "未知";
+  });
+  log(prefix + "摘要：" + label + "；请求UTF8字节=" + bodySize("请求体") +
+    "；响应UTF8字节=" + bodySize("响应体") + "；声明长度=" + headerLength() +
+    "；状态=" + statusSummary + "；正文=" + responseKind + "；阶段=" + phases.join("→"));
   // 不重试 $done；它可能已提交结果后才抛错，重试会造成重复回调。
   try { $done(result); } catch (_) { log(prefix + "返回调用异常；未重试"); }
 })();
