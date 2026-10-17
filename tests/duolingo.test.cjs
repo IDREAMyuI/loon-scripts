@@ -65,7 +65,7 @@ test('旧决策奖励、未知、缺少场景全部放行，即使响应包含�
 });
 test('集中课后视频仅在三项广告标记和课后请求同时成立时移除', () => {
   const out = invoke(central, response(), centralRequest);
-  assert.deepEqual(out.result, { body: '' }); assert.match(out.log, /自有推广决策 1 项/);
+  assert.deepEqual(out.result, { status: 200, headers: { 'Content-Length': '0' }, body: '' }); assert.match(out.log, /自有推广决策 1 项/);
   unchanged(invoke(central, '', centralRequest));
 });
 test('集中奖励请求保留完全相同的广告响应', () => {
@@ -178,7 +178,7 @@ test('已知错误页：既有课后消息入口也能精准处理', () => {
 });
 test('已知错误页：集中自动课后视频可处理，奖励场景仍保持字节不变', () => {
   const body = JSON.stringify(response()) + errorSuffix;
-  assert.deepEqual(invoke(central, body, centralRequest).result, { body: '' });
+  assert.deepEqual(invoke(central, body, centralRequest).result, { status: 200, headers: { 'Content-Length': '0' }, body: '' });
   unchanged(invoke(central, body, { clientParams: { plusPromotionAdType: 'rewarded-video' } }));
   unchanged(invoke(legacy, JSON.stringify(legacyAds) + errorSuffix, { appLocation: 'SESSION_START' }));
 });
@@ -279,4 +279,31 @@ test('v6 诊断补读或头读取抛错不改变已完成过滤', () => {
   assert.equal(results.length, 1); assert.deepEqual(JSON.parse(results[0].body), { sessionEndMessageDisplayInfo: [] });
   assert.match(logs.join('\n'), /请求UTF8字节=读取异常/); assert.match(logs.join('\n'), /声明长度=读取异常/);
   assert(!logs.join('').includes('SYNTHETIC_PRIVATE_MARKER'));
+});
+
+test('集中空响应清理所有大小写传输头，保留其他头且不修改原对象', () => {
+  const headers = { 'content-length': '896', 'Content-Length': '896',
+    'CONTENT-ENCODING': 'gzip', 'Transfer-Encoding': 'chunked',
+    'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  const before = { ...headers };
+  const out = invoke(central, response(), centralRequest, { response: { headers } });
+  assert.deepEqual(out.result, { status: 200, headers: { 'Content-Type': 'application/json',
+    'Cache-Control': 'no-store', 'Content-Length': '0' }, body: '' });
+  assert.deepEqual(headers, before);
+});
+test('集中响应头异常时原样放行，不误报移除', () => {
+  for (const headers of [undefined, null, [], 'invalid']) {
+    const out = invoke(central, response(), centralRequest, { response: { headers } });
+    unchanged(out); assert(!out.log.includes('已移除自有推广决策'));
+  }
+  const headers = {};
+  Object.defineProperty(headers, 'Other', { enumerable: true, get() { throw new Error('SYNTHETIC_PRIVATE_MARKER'); } });
+  const out = invoke(central, response(), centralRequest, { response: { headers } });
+  unchanged(out); assert(!out.log.includes('已移除自有推广决策'));
+});
+test('奖励、未知结构和自然空响应不更改传输头', () => {
+  const headers = { 'Content-Length': '123', 'Content-Encoding': 'gzip' };
+  unchanged(invoke(central, response(), { clientParams: { plusPromotionAdType: 'rewarded-video' } }, { response: { headers } }));
+  unchanged(invoke(central, { ...response(), unknown: true }, centralRequest, { response: { headers } }));
+  unchanged(invoke(central, '', centralRequest, { response: { headers: { 'Content-Length': '0' } } }));
 });

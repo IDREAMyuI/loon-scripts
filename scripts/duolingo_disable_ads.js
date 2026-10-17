@@ -1,8 +1,8 @@
-// Updated: 2026-09-18
+// Updated: 2026-10-17
 // 课后插屏入口及自有视频推广清单；未知结构原样放行。
 // 不修改会员、奖励、学习进度或广告 SDK；日志计数不代表真机播放结果。
 (function () {
-  var prefix = "多邻国课后[v6-test]：";
+  var prefix = "多邻国课后[v7-test]：";
   // 固定阶段日志不输出上下文或异常文本；日志故障不改变过滤结果。
   var phase = "启动";
   var log = function (message) { try { console.log(message); } catch (_) {} };
@@ -179,7 +179,19 @@
             } else if (enriched.variantClass === "StaticDuolingoVideoVariant" &&
                 (enriched.offerOrigin === "INTERSTITIAL_PLUS_VIDEO" || enriched.offerOrigin === "INTERSTITIAL_PLUS_VIDEO_FAMILY_PLAN") &&
                 isPromoVideo(enriched.videoURL)) {
-              result = { body: "" };
+              // 空正文显式设置长度，避免沿用原正文的传输元数据。
+              // 只处理已确认的课后视频；无法读取响应头时由外层原样放行。
+              var originalHeaders = $response.headers;
+              if (!isObject(originalHeaders)) throw new Error("invalid response headers");
+              var emptyHeaders = {};
+              Object.keys(originalHeaders).forEach(function (key) {
+                var lower = key.toLowerCase();
+                if (lower !== "content-length" && lower !== "content-encoding" && lower !== "transfer-encoding") {
+                  Object.defineProperty(emptyHeaders, key, { value: originalHeaders[key], enumerable: true });
+                }
+              });
+              emptyHeaders["Content-Length"] = "0";
+              result = { status: 200, headers: emptyHeaders, body: "" };
               log(prefix + label + "已移除自有推广决策 1 项，返回空决策响应");
             } else {
               log(prefix + label + "未发现可确认的课后视频，已原样放行");
