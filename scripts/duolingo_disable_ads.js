@@ -1,8 +1,8 @@
-// Updated: 2026-10-17
+// Updated: 2026-10-18
 // 课后插屏入口及自有视频推广清单；未知结构原样放行。
 // 不修改会员、奖励、学习进度或广告 SDK；日志计数不代表真机播放结果。
 (function () {
-  var prefix = "多邻国课后[v7-test]：";
+  var prefix = "多邻国课后[v7]：";
   // 固定阶段日志不输出上下文或异常文本；日志故障不改变过滤结果。
   var phase = "启动";
   var log = function (message) { try { console.log(message); } catch (_) {} };

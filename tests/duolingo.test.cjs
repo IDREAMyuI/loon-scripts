@@ -150,10 +150,10 @@ test('接口匹配精确且插件/脚本范围一致', () => {
     assert(!patterns.some((pattern) => pattern.test(bad))); unchanged(invoke(bad, response(), legacyRequest));
   }
 });
-test('所有四条插件规则引用同一分支脚本，MITM 不扩大', () => {
+test('所有四条插件规则引用 main 正式脚本，MITM 不扩大', () => {
   const refs = [...plugin.matchAll(/script-path=([^,\s]+)/g)].map((match) => match[1]);
   assert.equal(refs.length, 4);
-  assert(refs.every((url) => url === 'https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/duolingo-session-end-decisions/scripts/duolingo_disable_ads.js'));
+  assert(refs.every((url) => url === 'https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/duolingo_disable_ads.js'));
   assert.equal(plugin.match(/^hostname=(.*)$/m)[1], 'ios-api-2.duolingo.cn');
 });
 
