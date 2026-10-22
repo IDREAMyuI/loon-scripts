@@ -1,18 +1,15 @@
 /**
  * App: 微博
  * Purpose: 移除实时、预加载和缓存开屏广告，并过滤推荐信息流中的明确广告项
- * Updated: 2026-08-19
+ * Updated: 2026-09-16
  */
 const body = $response.body;
 const url = $request.url || "";
 
 const LOG = {
-  realtimeEmpty: "\u5fae\u535a\u5f00\u5c4f\uff1a\u5b9e\u65f6\u54cd\u5e94\u6b63\u6587\u4e3a\u7a7a\u6216\u975e\u4e8c\u8fdb\u5236\uff0c\u5df2\u539f\u6837\u653e\u884c",
-  realtimeNoAd: "\u5fae\u535a\u5f00\u5c4f\uff1a\u5b9e\u65f6\u54cd\u5e94\u672a\u5305\u542b\u5e7f\u544a",
-  realtimeFailed: "\u5fae\u535a\u5f00\u5c4f\uff1a\u5b9e\u65f6\u54cd\u5e94\u89e3\u6790\u5931\u8d25\uff0c\u5df2\u539f\u6837\u653e\u884c",
-  jsonEmpty: "\u5fae\u535a\u5e7f\u544a\uff1aJSON \u54cd\u5e94\u6b63\u6587\u4e3a\u7a7a\u6216\u7c7b\u578b\u4e0d\u5339\u914d\uff0c\u5df2\u539f\u6837\u653e\u884c",
-  structureMismatch: "\u5fae\u535a\u5e7f\u544a\uff1a\u54cd\u5e94\u7ed3\u6784\u4e0d\u5339\u914d\uff0c\u5df2\u539f\u6837\u653e\u884c",
-  jsonFailed: "\u5fae\u535a\u5e7f\u544a\uff1aJSON \u54cd\u5e94\u89e3\u6790\u5931\u8d25\uff0c\u5df2\u539f\u6837\u653e\u884c"
+  realtimeEmpty: "微博开屏：实时响应正文为空或非二进制，已原样放行",
+  realtimeNoAd: "微博开屏：实时响应未包含广告",
+  realtimeFailed: "微博开屏：实时响应解析失败，已原样放行"
 };
 
 function isObject(value) {
@@ -73,112 +70,116 @@ function handleRealtimeSplash() {
     $done({});
     return;
   }
-
   try {
     const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
+    const decoder = new TextDecoder("utf-8", { fatal: true });
     const contentType = headerValue($response.headers, "content-type");
-    const boundaryMatch = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(contentType);
-    const boundaryName = boundaryMatch?.[1] || boundaryMatch?.[2] || "";
-    const boundary = encoder.encode(`--${boundaryName}`);
+    const match = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(contentType);
+    const name = match?.[1] || match?.[2] || "";
+    const failStructure = () => { throw new Error("structure"); };
+    if (!/^multipart\//i.test(contentType) || !name || /[\r\n]/.test(name)) failStructure();
+    const boundary = encoder.encode(`--${name}`);
+    const marker = encoder.encode(`\r\n--${name}`);
     const separator = encoder.encode("\r\n\r\n");
-    const trailing = encoder.encode("--\r\n");
-
-    if (!boundaryName || indexOfBytes(body, boundary) !== 0) {
-      throw new Error("invalid multipart boundary");
-    }
-
-    const keptParts = [];
+    if (indexOfBytes(body, boundary) !== 0) failStructure();
+    const parts = [];
     let cursor = 0;
-    let matched = 0;
-    let removedAssets = 0;
-
+    let closed = false;
     while (cursor < body.length) {
-      const boundaryStart = indexOfBytes(body, boundary, cursor);
-      if (boundaryStart < 0) break;
-      const afterBoundary = boundaryStart + boundary.length;
-
-      if (body[afterBoundary] === 45 && body[afterBoundary + 1] === 45) break;
-
-      const partStart =
-        body[afterBoundary] === 13 && body[afterBoundary + 1] === 10
-          ? afterBoundary + 2
-          : afterBoundary;
-      const nextBoundary = indexOfBytes(body, boundary, partStart);
-      if (nextBoundary < 0) throw new Error("unterminated multipart part");
-
-      let partEnd = nextBoundary;
-      if (body[partEnd - 2] === 13 && body[partEnd - 1] === 10) partEnd -= 2;
-
-      const headerEnd = indexOfBytes(body, separator, partStart);
-      if (headerEnd < 0 || headerEnd >= partEnd) throw new Error("invalid multipart part");
-
-      const headers = decoder.decode(body.slice(partStart, headerEnd));
-      const partBody = body.slice(headerEnd + separator.length, partEnd);
-      const partName = /name="([^"]+)"/i.exec(headers)?.[1] || "";
-
-      if (partName === "realtime") {
-        const obj = JSON.parse(decoder.decode(partBody));
-        if (!isObject(obj)) throw new Error("unexpected realtime structure");
-
-        if (!hasOwn(obj, "ads")) {
-          if (!hasOwn(obj, "code")) throw new Error("unexpected realtime structure");
-          keptParts.push(
-            concatBytes([
-              boundary,
-              encoder.encode("\r\n"),
-              body.slice(partStart, partEnd),
-              encoder.encode("\r\n")
-            ])
-          );
-        } else {
-          if (!Array.isArray(obj.ads)) throw new Error("unexpected realtime ads");
-
-          matched = obj.ads.length;
-          obj.ads = [];
-          keptParts.push(
-            concatBytes([
-              boundary,
-              encoder.encode("\r\n"),
-              body.slice(partStart, headerEnd + separator.length),
-              encoder.encode(JSON.stringify(obj)),
-              encoder.encode("\r\n")
-            ])
-          );
-        }
-      } else if (/^res_multipart_key_/i.test(partName)) {
-        removedAssets += 1;
-      } else {
-        keptParts.push(
-          concatBytes([
-            boundary,
-            encoder.encode("\r\n"),
-            body.slice(partStart, partEnd),
-            encoder.encode("\r\n")
-          ])
-        );
+      const after = cursor + boundary.length;
+      if (body[after] === 45 && body[after + 1] === 45) {
+        const end = after + 2;
+        if (end !== body.length && !(end + 2 === body.length && body[end] === 13 && body[end + 1] === 10)) failStructure();
+        closed = true;
+        break;
       }
-
-      cursor = nextBoundary;
+      if (body[after] !== 13 || body[after + 1] !== 10) failStructure();
+      const start = after + 2;
+      let next = indexOfBytes(body, marker, start);
+      // 二进制素材中的相似字节不是合法边界。
+      while (next >= 0) {
+        const suffix = next + marker.length;
+        if ((body[suffix] === 13 && body[suffix + 1] === 10) ||
+            (body[suffix] === 45 && body[suffix + 1] === 45)) break;
+        next = indexOfBytes(body, marker, next + 1);
+      }
+      if (next < 0) failStructure();
+      const headerEnd = indexOfBytes(body, separator, start);
+      if (headerEnd < 0 || headerEnd >= next) failStructure();
+      const headers = decoder.decode(body.slice(start, headerEnd));
+      const disposition = headers.split("\r\n").find((line) => /^content-disposition:/i.test(line)) || "";
+      const partName = /(?:^|;)\s*name="([^"]+)"/i.exec(disposition)?.[1] || "";
+      if (!partName || parts.some((part) => part.name === partName)) failStructure();
+      parts.push({ name: partName, raw: body.slice(cursor, next + 2),
+        head: body.slice(cursor, headerEnd + separator.length),
+        value: body.slice(headerEnd + separator.length, next) });
+      cursor = next + 2;
     }
-
-    if (matched === 0 && removedAssets === 0) {
+    if (!closed) failStructure();
+    const realtime = parts.filter((part) => part.name === "realtime");
+    if (realtime.length !== 1) failStructure();
+    const target = realtime[0];
+    const obj = JSON.parse(decoder.decode(target.value));
+    if (!isObject(obj)) failStructure();
+    if (!hasOwn(obj, "ads")) {
+      if (!hasOwn(obj, "code")) failStructure();
       console.log(LOG.realtimeNoAd);
       $done({});
-    } else {
-      keptParts.push(boundary, trailing);
-      console.log(`\u5fae\u535a\u5f00\u5c4f\uff1a\u5b9e\u65f6\u5e7f\u544a\u5df2\u6e05\u7a7a\uff08${matched}\u6761\uff0c\u79fb\u9664\u7d20\u6750${removedAssets}\u4e2a\uff09`);
-      $done({ body: concatBytes(keptParts) });
+      return;
     }
+    if (!Array.isArray(obj.ads) || !obj.ads.every(isObject)) failStructure();
+    const count = obj.ads.length;
+    if (!count) {
+      console.log(LOG.realtimeNoAd);
+      $done({});
+      return;
+    }
+    // 只使用广告对象内完整字符串与 part 名称的精确对应，不推断未知字段或拼接标识。
+    const references = (value, result = new Set()) => {
+      if (typeof value === "string" && /^res_multipart_key_/.test(value)) result.add(value);
+      else if (Array.isArray(value)) value.forEach((item) => references(item, result));
+      else if (isObject(value)) Object.values(value).forEach((item) => references(item, result));
+      return result;
+    };
+    const adRefs = references(obj.ads);
+    const otherFields = Object.fromEntries(Object.entries(obj).filter(([key]) => key !== "ads"));
+    const protectedRefs = references(otherFields);
+    // 其他非素材 part 可能共享素材；无法解释其结构时保留所有素材。
+    let unknownOtherPart = false;
+    for (const part of parts) {
+      if (part !== target && !/^res_multipart_key_/i.test(part.name)) {
+        try { references(JSON.parse(decoder.decode(part.value)), protectedRefs); }
+        catch (_) { unknownOtherPart = true; }
+      }
+    }
+    obj.ads = [];
+    let removed = 0;
+    const kept = [];
+    for (const part of parts) {
+      if (part === target) {
+        kept.push(concatBytes([part.head, encoder.encode(JSON.stringify(obj)), encoder.encode("\r\n")]));
+      } else if (!unknownOtherPart && adRefs.has(part.name) && !protectedRefs.has(part.name)) {
+        removed++;
+      } else {
+        kept.push(part.raw);
+      }
+    }
+    kept.push(body.slice(cursor));
+    const output = concatBytes(kept);
+    const retained = parts.filter((part) => /^res_multipart_key_/i.test(part.name)).length - removed;
+    console.log(`微博实时开屏：已移除广告 ${count} 条，移除明确关联素材 ${removed} 个，保留素材 ${retained} 个`);
+    $done({ body: output });
   } catch (error) {
-    console.log(LOG.realtimeFailed);
+    console.log(error?.message === "structure" ? "微博实时开屏：响应结构不匹配，已原样放行" : LOG.realtimeFailed);
     $done({});
   }
 }
 
 function handleJsonResponse() {
+  const label = /\/v2\/ad\/preload(?:\?|$)/.test(url) ? "微博预加载开屏：" :
+    /\/wbapplua\/wbpullad\.lua(?:\?|$)/.test(url) ? "微博缓存开屏响应：" : "微博信息流：";
   if (!body || typeof body !== "string") {
-    console.log(LOG.jsonEmpty);
+    console.log(label + "正文为空或类型不匹配，已原样放行");
     $done({});
     return;
   }
@@ -188,17 +189,27 @@ function handleJsonResponse() {
 
     if (/\/v2\/ad\/preload(?:\?|$)/.test(url) && Array.isArray(obj?.ads)) {
       const count = obj.ads.length;
-      obj.ads = [];
-      console.log(`\u5fae\u535a\u5f00\u5c4f\uff1a\u9884\u52a0\u8f7d\u5df2\u6e05\u7a7a\uff08${count}\u6761\uff09`);
-      $done({ body: JSON.stringify(obj) });
+      if (count === 0) {
+        console.log("微博预加载开屏：未发现广告，已原样放行");
+        $done({});
+      } else {
+        obj.ads = [];
+        console.log(`微博预加载开屏：已移除 ${count} 条，保留 0 条`);
+        $done({ body: JSON.stringify(obj) });
+      }
     } else if (
       /\/wbapplua\/wbpullad\.lua(?:\?|$)/.test(url) &&
       Array.isArray(obj?.cached_ad?.ads)
     ) {
       const count = obj.cached_ad.ads.length;
-      obj.cached_ad.ads = [];
-      console.log(`\u5fae\u535a\u5f00\u5c4f\uff1a\u7f13\u5b58\u5df2\u6e05\u7a7a\uff08${count}\u6761\uff09`);
-      $done({ body: JSON.stringify(obj) });
+      if (count === 0) {
+        console.log("微博缓存开屏响应：未发现广告，已原样放行");
+        $done({});
+      } else {
+        obj.cached_ad.ads = [];
+        console.log(`微博缓存开屏响应：已移除 ${count} 条，保留 0 条；仅修改网络响应`);
+        $done({ body: JSON.stringify(obj) });
+      }
     } else if (
       /\/2\/statuses\/container_timeline_hot(?:\?|$)/.test(url) &&
       Array.isArray(obj?.items)
@@ -208,25 +219,28 @@ function handleJsonResponse() {
       const removedCount = originalCount - obj.items.length;
 
       if (removedCount > 0) {
-        console.log(`\u5fae\u535a\u4fe1\u606f\u6d41\uff1a\u5df2\u79fb\u9664\u5e7f\u544a\uff08${removedCount}\u6761\uff0c\u4fdd\u7559${obj.items.length}\u6761\uff09`);
+        console.log(`微博信息流：已移除广告（${removedCount}条，保留${obj.items.length}条）`);
         $done({ body: JSON.stringify(obj) });
       } else {
-        console.log(`\u5fae\u535a\u4fe1\u606f\u6d41\uff1a\u68c0\u67e5\u5b8c\u6210\uff0c\u672a\u53d1\u73b0\u53ef\u786e\u8ba4\u5e7f\u544a\uff08\u4fdd\u7559${originalCount}\u6761\uff09`);
+        console.log(`微博信息流：检查完成，未发现可确认广告（保留${originalCount}条）`);
         $done({});
       }
     } else {
-      console.log(LOG.structureMismatch);
+      console.log(label + "响应结构不匹配，已原样放行");
       $done({});
     }
   } catch (error) {
-    console.log(LOG.jsonFailed);
+    console.log(label + "解析失败，已原样放行");
     $done({});
   }
 }
 
-if (/\/v3\/ad\/realtime(?:\?|$)/.test(url)) {
+const target = /^https:\/\/(?:bootpreload\.uve\.weibo\.com\/v2\/ad\/preload|wbapp\.uve\.weibo\.com\/wbapplua\/wbpullad\.lua|bootrealtime\.uve\.weibo\.com\/v3\/ad\/realtime|api\.weibo\.cn\/2\/statuses\/container_timeline_hot)(?:\?|$)/;
+if (!target.test(url)) {
+  console.log("微博广告：接口不匹配，已原样放行");
+  $done({});
+} else if (/\/v3\/ad\/realtime(?:\?|$)/.test(url)) {
   handleRealtimeSplash();
 } else {
   handleJsonResponse();
 }
-
