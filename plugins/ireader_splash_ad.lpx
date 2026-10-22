@@ -1,11 +1,12 @@
-#!name=掌阅开屏广告
+#!name=测试版·掌阅开屏广告
 #!desc=关闭掌阅 iReader 开屏广告
 #!author=IDREAMyuI
 #!loon_version=3.5.0(975)
-# Updated: 2026-08-05
+# Updated: 2026-09-16
 
+# 分支测试版：请停用同 App 正式插件后测试；尚未完成实机验证。
 [Script]
-http-response ^https:\/\/saad\.ms\.zhangyue\.net\/ad\/cfg script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/scripts/ireader_disable_screen.js,requires-body=true,binary-body-mode=false,timeout=10,tag=掌阅关闭开屏广告
+http-response ^https:\/\/saad\.ms\.zhangyue\.net\/ad\/cfg(?:\?|$) script-path=https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/agent/ireader-safe-response/scripts/ireader_disable_screen.js,requires-body=true,binary-body-mode=false,timeout=10,tag=掌阅关闭开屏广告
 
 [Mitm]
 hostname=saad.ms.zhangyue.net
