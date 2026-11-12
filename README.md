@@ -1,6 +1,6 @@
 # loon-scripts
 
-> Last reviewed: 2026-08-19
+> Last reviewed: 2026-11-12
 
 公开维护的 Loon 配置、远程规则、插件和脚本。仓库只保存可以公开分发的内容；订阅凭证、节点信息、证书和抓包材料只保留在用户本机。
 
@@ -15,6 +15,8 @@
 
 ## 使用
 
+**首次安装或换新 iPhone / iPad：** 请按[从零配置完整步骤](docs/loon-new-device-setup.md)操作，涵盖本机 Sub-Store 订阅转换、证书、正式配置、策略组、应用选项核对与验收。
+
 在 Loon 中使用以下 Raw 地址导入主配置：
 
 `https://raw.githubusercontent.com/IDREAMyuI/loon-scripts/main/config/Loon_Public_v2.conf`
@@ -26,6 +28,7 @@
 ## 仓库结构
 
 ```text
+docs/      用户安装、换机与使用说明
 config/    Loon 公开配置
 rules/     Loon 远程规则
 plugins/   可独立导入的 Loon 插件
@@ -39,3 +42,4 @@ scripts/   插件引用的脚本
 ## 抓包与隐私
 
 HAR、PCAP、日志、截图、二维码、证书、订阅文件和真实响应默认视为敏感材料，只用于本地分析，不进入仓库、Issue、Pull Request 或公开讨论。制作插件时优先使用人工构造的最小测试数据；确需保留样本时，必须先按 `SECURITY.md` 完成脱敏。
+
